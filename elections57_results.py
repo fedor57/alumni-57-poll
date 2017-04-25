@@ -54,6 +54,10 @@ def get_credentials():
     return credentials
 
 def get_raw_candidates():
+    """Returns an array with the values of candidates voted for.
+
+    Each returned array element is a comma-separated list of candidates.
+    """
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?version=v4')
@@ -71,19 +75,23 @@ def get_raw_candidates():
 
     candidates = []
     for row in data:
-        names = row[0]
-        candidates = candidates + names.split(', ')
+        candidates += row
     return candidates
 
 
 candidates = get_raw_candidates()
+all_candidates = [name for c in candidates for name in c.split(', ')]
 
-import collections
-counts = collections.Counter(candidates)
+print 'Результаты голосования {} выборщиков.\n'.format(len(candidates))
 
 print 'Кандидаты в убывающем порядке голосов:\n'
+import collections
+counts = collections.Counter(all_candidates)
+
 print 'Голосов  Кандидат'
 print '------------------------------------------------------------------------'
 
 for c in counts.most_common():
     print '{:>7}  {}'.format(c[1], c[0].encode('utf-8'))
+
+print '\nВсего: {} голосов.'.format(len(all_candidates))
