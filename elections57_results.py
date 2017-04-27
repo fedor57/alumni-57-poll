@@ -54,9 +54,10 @@ def get_credentials():
     return credentials
 
 def get_raw_candidates():
-    """Returns an array with the values of candidates voted for.
+    """Returns a dict containing the voter ID as keys and the list of
+    the candidates voted for as values.
 
-    Each returned array element is a comma-separated list of candidates.
+    Each returned value is a comma-separated list of candidates.
     """
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
@@ -66,21 +67,55 @@ def get_raw_candidates():
     values = service.spreadsheets().values()
 
     spreadsheetId = '1KdLqYCIAo4bOcFfPBRkL5OyzIdeN2hERlgX0ZV_e--w'
-    rangeName = 'K2:K9999'
+    rangeName = 'A2:M9999'
     result = values.get(spreadsheetId=spreadsheetId, range=rangeName).execute()
     data = result.get('values', [])
 
     if not data:
         raise 'Failed to retrieve data.'
 
-    candidates = []
+    # Symbolic names for spreadsheet columns:
+    col_timestamp, col_has_code, col_code, col_name, col_class, \
+    col_fbpage, col_vkpage, col_email, col_sub_news, col_pub_dir, \
+    col_candidates, col_bylaws, col_comment = range(13)
+
+    candidates = {}
+    row_num = 0
     for row in data:
-        candidates += row
+        row_num += 1
+
+        # If we have the unique code, use its class and name parts as voter ID.
+        code = row[col_code]
+        if code:
+            # The code format is "57-1234v-wyxz-0123456789abcdef" except that
+            # there can be 5 or even 6 letters depending on transliteration
+            # vagaries, so we can't rely on its index.
+            start = 3
+            end = code.find('-', start + 9)
+            if end == -1:
+                print >> sys.stderr,\
+                    'Skipping row {}: invalid code format "{}"'.format(row_num, code)
+                next
+
+            voter_id = code[start:end]
+        else:
+            # Make up an ID from the class and the name.
+            voter_id = row[col_class] + '-'
+            if row[col_name]:
+                voter_id += row[col_name]
+            elif row[col_email]:
+                voter_id += row[col_email]
+            else:
+                print >> sys.stderr,\
+                    'Skipping row {}: no voter identification'.format(row_num)
+                next
+
+        candidates[voter_id] = row[col_candidates]
     return candidates
 
 
 candidates = get_raw_candidates()
-all_candidates = [name for c in candidates for name in c.split(', ')]
+all_candidates = [name for c in candidates.values() for name in c.split(', ')]
 
 print 'Результаты голосования {} выборщиков.\n'.format(len(candidates))
 
