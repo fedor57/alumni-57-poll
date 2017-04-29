@@ -72,7 +72,7 @@ def get_raw_candidates():
     data = result.get('values', [])
 
     if not data:
-        raise 'Failed to retrieve data.'
+        raise Exception('Failed to retrieve data.')
 
     # Symbolic names for spreadsheet columns:
     col_timestamp, col_has_code, col_code, col_name, col_class, \
