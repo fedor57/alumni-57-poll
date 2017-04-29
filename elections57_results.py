@@ -127,6 +127,6 @@ print 'Голосов  Кандидат'
 print '------------------------------------------------------------------------'
 
 for c in counts.most_common():
-    print '{:>7}  {}'.format(c[1], c[0].encode('utf-8'))
+    print u'{:>7}  {}'.format(c[1], c[0])
 
 print '\nВсего: {} голосов.'.format(len(all_candidates))
