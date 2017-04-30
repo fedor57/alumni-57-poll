@@ -152,7 +152,7 @@ def get_raw_candidates():
             if not row[col_class]:
                 print >> sys.stderr,\
                     'Skipping row {}: no class specified'.format(row_num)
-                next
+                continue
 
             # Make up an ID from the class and the name.
             voter_id = row[col_class] + '-'
@@ -163,7 +163,7 @@ def get_raw_candidates():
             else:
                 print >> sys.stderr,\
                     'Skipping row {}: no voter identification'.format(row_num)
-                next
+                continue
 
         candidates[voter_id] = row[col_candidates]
     return candidates
