@@ -155,7 +155,7 @@ def get_raw_candidates():
                 continue
 
             # Make up an ID from the class and the name.
-            voter_id = row[col_class] + '-'
+            voter_id = row[col_class].upper() + '-'
             if row[col_name]:
                 voter_id += row[col_name]
             elif row[col_email]:
