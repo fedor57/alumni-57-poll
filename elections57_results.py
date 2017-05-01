@@ -20,7 +20,11 @@ from oauth2client import tools
 from oauth2client.file import Storage
 
 import argparse
-flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
+argparser = argparse.ArgumentParser(description='Show election results', parents=[tools.argparser])
+argparser.add_argument('operation', nargs='?',
+    help='Operation to perform, show results by default',
+    choices=['results', 'year_stats'], default='results',)
+cmdline_args = argparser.parse_args()
 
 # If modifying these scopes, delete your previously saved credentials
 SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly'
@@ -49,7 +53,7 @@ def get_credentials():
     if not credentials or credentials.invalid:
         flow = client.flow_from_clientsecrets(os.path.join(google_sheet_api_dir, 'client_secret.json'), SCOPES)
         flow.user_agent = APPLICATION_NAME
-        credentials = tools.run_flow(flow, store, flags)
+        credentials = tools.run_flow(flow, store, cmdline_args)
         print 'Storing credentials to ' + credential_path
     return credentials
 
@@ -172,19 +176,57 @@ def get_raw_candidates():
 
 
 candidates, total_votes = get_raw_candidates()
-all_candidates = [name for c in candidates.values() for name in c.split(', ')]
 
-print 'Результаты голосования {} уникальных избирателей ({} всего).\n'.\
-    format(len(candidates), total_votes)
+if cmdline_args.operation == 'results':
+    all_candidates = [name for c in candidates.values() for name in c.split(', ')]
 
-print 'Кандидаты в убывающем порядке голосов:\n'
-import collections
-counts = collections.Counter(all_candidates)
+    print 'Результаты голосования {} уникальных избирателей ({} всего).\n'.\
+        format(len(candidates), total_votes)
 
-print 'Голосов  Кандидат'
-print '------------------------------------------------------------------------'
+    print 'Кандидаты в убывающем порядке голосов:\n'
+    import collections
+    counts = collections.Counter(all_candidates)
 
-for c in counts.most_common():
-    print u'{:>7}  {}'.format(c[1], c[0])
+    print 'Голосов  Кандидат'
+    print '------------------------------------------------------------------------'
 
-print '\nВсего: {} голосов.'.format(len(all_candidates))
+    for c in counts.most_common():
+        print u'{:>7}  {}'.format(c[1], c[0])
+
+    print '\nВсего: {} голосов.'.format(len(all_candidates))
+elif cmdline_args.operation == 'year_stats':
+    def get_year(v):
+        return int(v[0:4])
+
+    def get_class(v):
+        return v[4]
+
+    classes = []
+    votes_by_year = {}
+    for v in candidates.keys():
+        y, c = get_year(v), get_class(v)
+        if c not in classes:
+            classes.append(c)
+
+        if y in votes_by_year:
+            if c in votes_by_year[y]:
+                votes_by_year[y][c] += 1
+            else:
+                votes_by_year[y][c] = 1
+        else:
+            votes_by_year[y] = { c: 1 }
+
+    classes = sorted(classes)
+    min_year = min(votes_by_year.keys())
+    max_year = max(votes_by_year.keys())
+    print 'x,' + ','.join(classes)
+    for y in range(min_year, max_year + 1):
+        votes = votes_by_year[y] if y in votes_by_year else {}
+        votes_by_class = []
+        for c in sorted(classes):
+            votes_by_class.append(str(votes[c] if c in votes else 0))
+        print '{},{}'.format(y, ','.join(votes_by_class))
+else:
+    print >> sys.stderr,\
+        'Unknown operation "{}", see help.'.format(cmdline_args.operation)
+    sys.exit(1)
