@@ -107,9 +107,11 @@ class code_cache:
 
 def get_raw_candidates():
     """Returns a dict containing the voter ID as keys and the list of
-    the candidates voted for as values.
+    the candidates voted for as values and total number of voters (not
+    necessarily unique).
 
-    Each returned value is a comma-separated list of candidates.
+    Each returned value in the returned dict is a comma-separated list of
+    candidates.
     """
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
@@ -166,13 +168,14 @@ def get_raw_candidates():
                 continue
 
         candidates[voter_id] = row[col_candidates]
-    return candidates
+    return candidates, row_num
 
 
-candidates = get_raw_candidates()
+candidates, total_votes = get_raw_candidates()
 all_candidates = [name for c in candidates.values() for name in c.split(', ')]
 
-print 'Результаты голосования {} выборщиков.\n'.format(len(candidates))
+print 'Результаты голосования {} уникальных избирателей ({} всего).\n'.\
+    format(len(candidates), total_votes)
 
 print 'Кандидаты в убывающем порядке голосов:\n'
 import collections
