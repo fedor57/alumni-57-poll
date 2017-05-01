@@ -10,6 +10,7 @@
 # argument to perform authentication in another browser (possibly on another
 # machine).
 
+import collections
 import httplib2
 import os
 import sys
@@ -184,7 +185,6 @@ if cmdline_args.operation == 'results':
         format(len(candidates), total_votes)
 
     print 'Кандидаты в убывающем порядке голосов:\n'
-    import collections
     counts = collections.Counter(all_candidates)
 
     print 'Голосов  Кандидат'
@@ -202,30 +202,24 @@ elif cmdline_args.operation == 'year_stats':
         return v[4]
 
     classes = []
-    votes_by_year = {}
+    votes_by_year = collections.defaultdict(lambda: collections.defaultdict(int))
     for v in candidates.keys():
         y, c = get_year(v), get_class(v)
         if c not in classes:
             classes.append(c)
 
-        if y in votes_by_year:
-            if c in votes_by_year[y]:
-                votes_by_year[y][c] += 1
-            else:
-                votes_by_year[y][c] = 1
-        else:
-            votes_by_year[y] = { c: 1 }
+        votes_by_year[y][c] += 1
 
     classes = sorted(classes)
     min_year = min(votes_by_year.keys())
     max_year = max(votes_by_year.keys())
     print 'x,' + ','.join(classes)
     for y in range(min_year, max_year + 1):
-        votes = votes_by_year[y] if y in votes_by_year else {}
+        votes = votes_by_year[y]
         votes_by_class = []
         for c in sorted(classes):
-            votes_by_class.append(str(votes[c] if c in votes else 0))
-        print '{},{}'.format(y, ','.join(votes_by_class))
+            votes_by_class.append(votes[c])
+        print '{},{}'.format(y, ','.join([str(x) for x in votes_by_class]))
 else:
     print >> sys.stderr,\
         'Unknown operation "{}", see help.'.format(cmdline_args.operation)
