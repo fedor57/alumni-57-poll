@@ -24,7 +24,7 @@ import argparse
 argparser = argparse.ArgumentParser(description='Show election results', parents=[tools.argparser])
 argparser.add_argument('operation', nargs='?',
     help='Operation to perform, show results by default',
-    choices=['results', 'year_stats'], default='results',)
+    choices=['results', 'dump', 'year_stats'], default='results',)
 cmdline_args = argparser.parse_args()
 
 # If modifying these scopes, delete your previously saved credentials
@@ -219,6 +219,21 @@ elif cmdline_args.operation == 'year_stats':
         for c in sorted(classes):
             votes_by_class.append(votes[c])
         print '{},{}'.format(y, ','.join([str(x) for x in votes_by_class]))
+elif cmdline_args.operation == 'dump':
+    from datetime import datetime
+
+    def parse_timestamp(s):
+        return datetime.strptime(s, '%m/%d/%Y %H:%M:%S')
+
+    # Dump in vote order, i.e. sort by timestamp.
+    for d in sorted(data.items(), key=lambda x: parse_timestamp(x[1][col_timestamp])):
+        print u'{}\t{}\t{}'.format(
+                d[0], # TODO: safely hash it
+                # Dump it in ISO format instead of C one used in raw data.
+                parse_timestamp(d[1][col_timestamp]),
+                # Omit columns containing information identifying the voter.
+                '\t'.join(d[1][col_sub_news:col_comment])
+            )
 else:
     print >> sys.stderr,\
         'Unknown operation "{}", see help.'.format(cmdline_args.operation)
