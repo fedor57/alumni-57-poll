@@ -110,13 +110,15 @@ class code_cache:
             raise Exception('Bad code {}: status: {}'.format(code, d['status']))
         return u'{}{}-{}'.format(d['year'], d['letter'], d['full_name'])
 
-def get_raw_candidates():
-    """Returns a dict containing the voter ID as keys and the list of
-    the candidates voted for as values and total number of voters (not
-    necessarily unique).
+# Symbolic names for spreadsheet columns:
+col_timestamp, col_has_code, col_code, col_name, col_class, \
+col_fbpage, col_vkpage, col_email, col_sub_news, col_pub_dir, \
+col_candidates, col_bylaws, col_comment = range(13)
 
-    Each returned value in the returned dict is a comma-separated list of
-    candidates.
+def get_dedup_data():
+    """Returns a dict containing the voter ID as keys and the final values
+    of the vote for this voter as values and total number of voters (not
+    necessarily unique).
     """
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
@@ -133,12 +135,7 @@ def get_raw_candidates():
     if not data:
         raise Exception('Failed to retrieve data.')
 
-    # Symbolic names for spreadsheet columns:
-    col_timestamp, col_has_code, col_code, col_name, col_class, \
-    col_fbpage, col_vkpage, col_email, col_sub_news, col_pub_dir, \
-    col_candidates, col_bylaws, col_comment = range(13)
-
-    candidates = {}
+    dedup_data = {}
     cc = code_cache()
     row_num = 0
     for row in data:
@@ -172,17 +169,19 @@ def get_raw_candidates():
                     'Skipping row {}: no voter identification'.format(row_num)
                 continue
 
-        candidates[voter_id] = row[col_candidates]
-    return candidates, row_num
+        dedup_data[voter_id] = row
+    return dedup_data, row_num
 
-
-candidates, total_votes = get_raw_candidates()
+data, total_votes = get_dedup_data()
 
 if cmdline_args.operation == 'results':
+    candidates = {}
+    for v in data:
+        candidates[v] = data[v][col_candidates]
     all_candidates = [name for c in candidates.values() for name in c.split(', ')]
 
     print 'Результаты голосования {} уникальных избирателей ({} всего).\n'.\
-        format(len(candidates), total_votes)
+        format(len(data), total_votes)
 
     print 'Кандидаты в убывающем порядке голосов:\n'
     counts = collections.Counter(all_candidates)
@@ -203,7 +202,7 @@ elif cmdline_args.operation == 'year_stats':
 
     classes = []
     votes_by_year = collections.defaultdict(lambda: collections.defaultdict(int))
-    for v in candidates.keys():
+    for v in data.keys():
         y, c = get_year(v), get_class(v)
         if c not in classes:
             classes.append(c)
