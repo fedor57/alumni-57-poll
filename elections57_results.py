@@ -11,7 +11,9 @@
 # machine).
 
 import collections
+import csv
 import httplib2
+import hashlib
 import os
 import sys
 
@@ -24,7 +26,7 @@ import argparse
 argparser = argparse.ArgumentParser(description='Show election results', parents=[tools.argparser])
 argparser.add_argument('operation', nargs='?',
     help='Operation to perform, show results by default',
-    choices=['results', 'year_stats'], default='results',)
+    choices=['results', 'year_stats', 'raw_data'], default='results',)
 cmdline_args = argparser.parse_args()
 
 # If modifying these scopes, delete your previously saved credentials
@@ -110,14 +112,8 @@ class code_cache:
             raise Exception('Bad code {}: status: {}'.format(code, d['status']))
         return u'{}{}-{}'.format(d['year'], d['letter'], d['full_name'])
 
-def get_raw_candidates():
-    """Returns a dict containing the voter ID as keys and the list of
-    the candidates voted for as values and total number of voters (not
-    necessarily unique).
-
-    Each returned value in the returned dict is a comma-separated list of
-    candidates.
-    """
+def get_raw_data():
+    """Returns raw data from Google spreadsheet"""
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?version=v4')
@@ -132,6 +128,17 @@ def get_raw_candidates():
 
     if not data:
         raise Exception('Failed to retrieve data.')
+
+    return data
+
+def get_raw_candidates(data):
+    """Returns a dict containing the voter ID as keys and the list of
+    the candidates voted for as values and total number of voters (not
+    necessarily unique).
+
+    Each returned value in the returned dict is a comma-separated list of
+    candidates.
+    """
 
     # Symbolic names for spreadsheet columns:
     col_timestamp, col_has_code, col_code, col_name, col_class, \
@@ -176,7 +183,8 @@ def get_raw_candidates():
     return candidates, row_num
 
 
-candidates, total_votes = get_raw_candidates()
+raw_data = get_raw_data()
+candidates, total_votes = get_raw_candidates(raw_data)
 
 if cmdline_args.operation == 'results':
     all_candidates = [name for c in candidates.values() for name in c.split(', ')]
@@ -220,6 +228,23 @@ elif cmdline_args.operation == 'year_stats':
         for c in sorted(classes):
             votes_by_class.append(votes[c])
         print '{},{}'.format(y, ','.join([str(x) for x in votes_by_class]))
+elif cmdline_args.operation == 'raw_data':
+    SALT = input("Enter salt: ") # Or any other method to get SALT known to organizers
+    OUTPUT = 'raw_results_anonymized.csv'
+
+    def hash(code):
+        return hashlib.sha256(code + SALT).hexdigest()
+
+    # Symbolic names for spreadsheet columns:
+    col_timestamp, col_has_code, col_code, col_name, col_class, \
+    col_fbpage, col_vkpage, col_email, col_sub_news, col_pub_dir, \
+    col_candidates, col_bylaws, col_comment = range(13)     
+
+    with open(OUTPUT, 'wb') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Time', 'Hash', 'Votes'])
+        for row in raw_data:
+            writer.writerow([row[col_timestamp], hash(row[col_code]), row[col_candidates]])
 else:
     print >> sys.stderr,\
         'Unknown operation "{}", see help.'.format(cmdline_args.operation)
