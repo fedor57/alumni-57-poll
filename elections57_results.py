@@ -14,6 +14,7 @@ import collections
 import httplib2
 import os
 import sys
+import bcrypt
 
 from apiclient import discovery
 from oauth2client import client
@@ -25,6 +26,7 @@ argparser = argparse.ArgumentParser(description='Show election results', parents
 argparser.add_argument('operation', nargs='?',
     help='Operation to perform, show results by default',
     choices=['results', 'dump', 'year_stats'], default='results',)
+argparser.add_argument('secret', nargs='?', help='Secret for bcrypt hashing')
 cmdline_args = argparser.parse_args()
 
 # If modifying these scopes, delete your previously saved credentials
@@ -223,16 +225,19 @@ elif cmdline_args.operation == 'dump':
     from datetime import datetime
 
     def parse_timestamp(s):
-        return datetime.strptime(s, '%m/%d/%Y %H:%M:%S')
+        return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
+
+    # See http://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
+    salt = bcrypt.gensalt()
 
     # Dump in vote order, i.e. sort by timestamp.
     for d in sorted(data.items(), key=lambda x: parse_timestamp(x[1][col_timestamp])):
         print u'{}\t{}\t{}'.format(
-                d[0], # TODO: safely hash it
+                bcrypt.hashpw(d[0] + cmdline_args.secret, salt), 
                 # Dump it in ISO format instead of C one used in raw data.
                 parse_timestamp(d[1][col_timestamp]),
                 # Omit columns containing information identifying the voter.
-                '\t'.join(d[1][col_sub_news:col_comment])
+                '\t'.join(d[1][col_candidates:col_bylaws])
             )
 else:
     print >> sys.stderr,\
