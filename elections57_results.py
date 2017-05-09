@@ -235,7 +235,7 @@ elif cmdline_args.operation == 'dump':
                 # Dump it in ISO format instead of C one used in raw data.
                 parse_timestamp(d[1][col_timestamp]),
                 # Omit columns containing information identifying the voter.
-                '\t'.join(d[1][col_sub_news:col_comment])
+                '\t'.join(d[1][col_candidates:col_bylaws])
             )
 else:
     print >> sys.stderr,\
