@@ -227,11 +227,13 @@ elif cmdline_args.operation == 'dump':
     def parse_timestamp(s):
         return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
 
+    # See http://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
+    salt = bcrypt.gensalt()
+
     # Dump in vote order, i.e. sort by timestamp.
     for d in sorted(data.items(), key=lambda x: parse_timestamp(x[1][col_timestamp])):
         print u'{}\t{}\t{}'.format(
-                # See http://stackoverflow.com/questions/6832445/how-can-bcrypt-have-built-in-salts
-                bcrypt.hashpw(d[0] + cmdline_args.secret, bcrypt.gensalt()), 
+                bcrypt.hashpw(d[0] + cmdline_args.secret, salt), 
                 # Dump it in ISO format instead of C one used in raw data.
                 parse_timestamp(d[1][col_timestamp]),
                 # Omit columns containing information identifying the voter.
