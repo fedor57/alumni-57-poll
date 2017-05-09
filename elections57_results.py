@@ -223,7 +223,7 @@ elif cmdline_args.operation == 'dump':
     from datetime import datetime
 
     def parse_timestamp(s):
-        return datetime.strptime(s, '%m/%d/%Y %H:%M:%S')
+        return datetime.strptime(s, '%Y-%m-%d %H:%M:%S')
 
     # Dump in vote order, i.e. sort by timestamp.
     for d in sorted(data.items(), key=lambda x: parse_timestamp(x[1][col_timestamp])):
